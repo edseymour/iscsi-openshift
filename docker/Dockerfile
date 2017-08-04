@@ -1,7 +1,7 @@
-FROM fedora:22
-MAINTAINER Jianwei Hou, jhou@redhat.com
+FROM centos:7
+MAINTAINER Ed Seymour, eseymour@redhat.com
 
-RUN dnf install -y targetcli hostname
+RUN yum install -y targetcli hostname
 
 ADD init.sh /
 
