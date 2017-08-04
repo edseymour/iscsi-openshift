@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash 
 
 # enable dbus
 mkdir /run/dbus
