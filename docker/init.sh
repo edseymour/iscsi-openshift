@@ -49,7 +49,7 @@ for disk in $DISKS; do
 done 
 
 # Set ACL
-for acl in $ACL_IGNS; do
+for acl in ${ACL_IQNS}; do
   targetcli /iscsi/${TARGET_NAME}/tpg1/acls create ${acl}
 done
 
