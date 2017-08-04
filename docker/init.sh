@@ -7,6 +7,7 @@ dbus-daemon --system
 # iscsi vars
 [ -z "${TARGET_NAME}" ] && TARGET_NAME='iqn.2016-04.test.home:storage.target00'
 [ -z "${ACL_IQNS}" ] && ACL_IQNS='iqn.2016-04.test.com:test'
+[ -z "${PORTAL}" ] && PORTAL=$(hostname -i)
 
 DISKS=""
 DISKID=1
@@ -40,7 +41,7 @@ fi
 targetcli /iscsi create ${TARGET_NAME}
 # Set IP address of the target
 targetcli /iscsi/${TARGET_NAME}/tpg1/portals delete 0.0.0.0 3260
-targetcli /iscsi/${TARGET_NAME}/tpg1/portals create `hostname -i`
+targetcli /iscsi/${TARGET_NAME}/tpg1/portals create $PORTAL
 
 # Set LUN
 for disk in $DISKS; do
