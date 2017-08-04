@@ -4,5 +4,6 @@ MAINTAINER Ed Seymour, eseymour@redhat.com
 RUN yum install -y targetcli hostname
 
 ADD init.sh /
+ADD deinit.sh /
 
 ENTRYPOINT /init.sh
