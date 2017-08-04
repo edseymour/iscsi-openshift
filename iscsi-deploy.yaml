@@ -1,0 +1,115 @@
+apiVersion: v1
+kind: Template
+metadata:
+  creationTimestamp: null
+  name: iscsi
+parameters:
+- name: DEVS
+  displayName: Devices
+  description: List of devices to use to create iscsi LUNs
+  required: true
+- name: DEVPATH
+  displayName: Base Dev Diretory
+  description: Where Devs can be found on the server
+  required: true
+- name: HOSTNODE
+  displayName: Host Node
+  description: OpenShift Node hosting the iscsi service
+  required: true
+- name: ACL_IQNS
+  displayName: ACLs
+  description: Initiator IQNs to be added to target acls
+  required: true
+- name: TARGET_NAME
+  displayName: Target Name
+  description: Name of ISCSI service Target
+  required: true
+  value: iqn.2016-04.cluster.local:storage.target00
+objects:
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+    creationTimestamp: null
+    generation: 1
+    labels:
+      app: iscsi
+    name: iscsi
+  spec:
+    replicas: 1
+    selector:
+      app: iscsi
+      deploymentconfig: iscsi
+    strategy:
+      activeDeadlineSeconds: 21600
+      recreateParams:
+        timeoutSeconds: 600
+      resources: {}
+      type: Recreate
+    template:
+      metadata:
+        annotations:
+          openshift.io/generated-by: OpenShiftNewApp
+        creationTimestamp: null
+        labels:
+          app: iscsi
+          deploymentconfig: iscsi
+      spec:
+        containers:
+        - env:
+          - name: DEVS
+            value: ${DEVS}
+          - name: TARGET_NAME
+            value: ${TARGET_NAME}
+          - name: ACL_IQNS
+            value: ${ACL_IQNS}
+          image: ''
+          imagePullPolicy: Always
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                - /deinit.sh
+          name: iscsi
+          ports:
+          - containerPort: 3260
+            hostPort: 3260
+            protocol: TCP
+          resources: {}
+          securityContext:
+            privileged: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /lib/modules
+            name: kernel
+          - mountPath: ${DEVPATH}
+            name: lvs
+        dnsPolicy: ClusterFirst
+        hostNetwork: true
+        nodeSelector:
+          kubernetes.io/hostname: ${HOSTNODE}
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - hostPath:
+            path: /lib/modules
+          name: kernel
+        - hostPath:
+            path: ${DEVPATH}
+          name: lvs
+    test: false
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - iscsi
+        from:
+          kind: ImageStreamTag
+          name: iscsi:latest
+          namespace: iscsi
+      type: ImageChange
+    - type: ConfigChange
