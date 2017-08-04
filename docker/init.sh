@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 # enable dbus
 mkdir /run/dbus
@@ -12,11 +12,11 @@ DISKID=1
 if [ -z ${DEVS} ] ; then
 
   mkdir /iscsi_disks
-  DEV="/iscsi_disks/disk01.img /iscsi_disks/disk02.img"
 
-  for dev in ${DEVS}; do
+  for dev in /iscsi_disks/disk01.img /iscsi_disks/disk02.img do
 
     targetcli /backstores/fileio create disk${DISKID} ${dev} 2G
+    DISKS="$DISKS /backstores/fileio/${DISKID}"
     DISKID=$((DISKID+1))
 
   done
@@ -26,6 +26,7 @@ else
   for dev in ${DEVS}; do
 
     targetcli /backstores/block create disk${DISKID} ${dev}
+    DISKS="$DISKS /backstores/block/${DISKID}"
     DISKID=$((DISKID+1))
 
   done
@@ -38,17 +39,21 @@ targetcli /iscsi create ${TARGET_NAME}
 targetcli /iscsi/${TARGET_NAME}/tpg1/portals delete 0.0.0.0 3260
 targetcli /iscsi/${TARGET_NAME}/tpg1/portals create `hostname -i`
 # Set LUN
-targetcli /iscsi/${TARGET_NAME}/tpg1/luns create /backstores/fileio/disk01
-targetcli /iscsi/${TARGET_NAME}/tpg1/luns create /backstores/fileio/disk02
+for disk in $DISKS; do
+  targetcli /iscsi/${TARGET_NAME}/tpg1/luns create $disk
+done 
+
 # Set ACL
 targetcli /iscsi/${TARGET_NAME}/tpg1/acls create ${ACL_IQN}
+targetcli ls
 
 # Set auth
 #AUTH_USER_ID=5f84cec2
 #AUTH_PASSWORD=b0d324e9
 #targetcli /iscsi/${TARGET_NAME}/tpg1/acls/${ACL_IQN} set auth userid=${AUTH_USER_ID}
 #targetcli /iscsi/${TARGET_NAME}/tpg1/acls/${ACL_IQN} set auth password=${AUTH_PASSWORD}
-
+echo "** iscsi target initialised **"
+echo "------------------------------------------------------------------------"
 
 while true
 do
