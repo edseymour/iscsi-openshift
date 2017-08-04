@@ -13,7 +13,9 @@ if [ -z ${DEVS} ] ; then
 
   mkdir /iscsi_disks
 
-  for dev in /iscsi_disks/disk01.img /iscsi_disks/disk02.img do
+  example_disks="/iscsi_disks/disk01.img /iscsi_disks/disk02.img"
+
+  for dev in $example_disks; do
 
     targetcli /backstores/fileio create disk${DISKID} ${dev} 2G
     DISKS="$DISKS /backstores/fileio/${DISKID}"
