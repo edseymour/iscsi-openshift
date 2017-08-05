@@ -31,7 +31,7 @@ The following example assumes a single disk `/dev/sdb` was attached to the serve
 ``` 
 The above creates 20 volumes: 10x 1Gi, 5x 10Gi, and 5x 50Gi in size. 
 
-Take a note of the `target-node` IP address, this will be used for the Target's portal. 
+Take a note of the `target-node` IP address, this will be used for the Target's portal. You will also need to open port 3260 on the server's firewall. 
 
 ## Create the ISCSI Target Container
 Use the `iscsi-build-template.yaml` to create an ImageStream and build configuration. 
