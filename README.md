@@ -51,7 +51,7 @@ For example:
 # oc process -f iscsi-deploy-template.yaml DEVS=/dev/iscsi/* DEVPATH=/dev/iscsi HOSTNODE=target-node ACL_IQNS=iqn.1994-05.com.redhat:7417c798910 TARGET_NAME=iqn.2016-04.cluster.local:storage.target00
 ```
 
-# Create Persistent Volumes
+## Create Persistent Volumes
 The `scripts/iscsi-pv-template.yaml` can be used to create new persistent volumes, alternatively, the script `create-pvs.sh` can be used to batch up this process. 
 
 The template takes the following parameters:
