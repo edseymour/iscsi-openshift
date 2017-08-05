@@ -1,19 +1,38 @@
 apiVersion: v1
-kind: PersistentVolume
+kind: Template
 metadata:
-  name: iscsi-lun%lun
-  labels:
-    kind: iscsi
-spec:
-  accessModes:
-  - ReadWriteOnce
-  capacity:
-    storage: %size
-  iscsi:
-    targetPortal: "192.168.1.12:3260"
-    iqn: "iqn.2016-04.cluster.local:storage.target00"
-    lun: %lun
-    fsType: "ext4"
-    readOnly: false
-  persistentVolumeReclaimPolicy: Retain
-status: {}
+  name: iscsi-pv
+parameters:
+- name: PORTAL
+  displayName: Portal
+  description: The IP address of the host acting as the ISCSI Target
+  required: true
+- name: IQN
+  description: The Target IQN
+  required: true
+- name: LUN
+  description: The LUN number
+  required: true
+- name: SIZE
+  displayName: Size
+  description: The size of the volume
+  required: true
+objects: 
+- kind: PersistentVolume
+  apiVersion: v1
+  metadata:
+    name: iscsi-lun${LUN}
+    labels:
+      kind: iscsi
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: ${SIZE}
+    iscsi:
+      targetPortal: "${PORTAL}:3260"
+      iqn: "${IQN}"
+      lun: ${LUN}
+      fsType: "ext4"
+      readOnly: false
+    persistentVolumeReclaimPolicy: Retain

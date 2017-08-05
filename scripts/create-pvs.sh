@@ -15,20 +15,21 @@ function default_if_empty()
 }
 
 
-USAGE="$0 <volume size> <start LUN> <stop LUN>"
+USAGE="$0 <portal> <target iqn> <volume size> <start LUN> <stop LUN>"
 
-MAVENURL=$2
-check_exists "Maven repository URL, $USAGE" $MAVENURL
-
-SIZE=$1
+PORTAL=$1
+check_exists "Portal, $USAGE" $PORTAL
+IQN=$2
+check_exists "Target IQN, $USAGE" $IQN
+SIZE=$3
 check_exists "Size, $USAGE" $SIZE
-LUNSTART=$2
+LUNSTART=$4
 check_exists "Start LUN, $USAGE" $LUNSTART
-LUNSTOP=$3
+LUNSTOP=$5
 check_exists "Stop LUN, $USAGE" $LUNSTOP
 
 for lun in $(seq $LUNSTART $LUNSTOP); do
 
-sed 's/%size/'$SIZE'/g' iscsi-pv-template.yaml | sed 's/%lun/'$lun'/g' | oc create -f -
+  oc process -f iscsi-pv-template.yaml PORTAL=$PORTAL IQN=$IQN LUN=$lun SIZE=$SIZE | oc create -f -
 
 done
