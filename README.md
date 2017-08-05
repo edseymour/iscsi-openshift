@@ -1,94 +1,65 @@
-ISCSI target pod for OpenShift testings.
+ISCSI target pod for demonstrating ISCSI Targets in simple OpenShift clusters (not for production)
+
+This project is based on https://github.com/jhou1/docker-iscsi
 
 # Target Setup
-ISCSI target setup needs to run a privileged container with `SYS_MODULE` capability and `/lib/modules` mount directory. First edit the scc.yml, replace `YOUR_USERNAME` with your OpenShift login, then run:
+ISCSI target setup needs to run a privileged container with `SYS_MODULE` capability and `/lib/modules` mount directory. 
+
+First use the `scc.yml` to create a new Security Context Configuration
 
 ```
 oc create -f scc.yml
-oc create -f iscsi-target.json
 ```
 
-## Verify iscsi setup is successful
-
-After pod is `Running`, run `oc exec iscsi-target -- targetcli ls /iscsi/iqn.2016-04.test.com:storage.target00/tpg1`, you should see
+The template does not include a service account, and runs the container using the host project's default service account. Therefore, once the SCC is created you'll need to add this service account to the SCC created above: 
 
 ```
-</iqn.2016-04.test.com:storage.target00/tpg1/portals
-o- portals  [Portals: 1]
-  o- 10.1.1.3:3260  [OK]
->
+oc adm policy add-scc-to-user storagescc system:servieaccount:<your iscsi project>:default
 ```
+## Prepare the target node
 
-# Initiator Setup
+The iscsi target service is designed to be locked to a specific OpenShift Node that provides the underlying disk storage. The template allows for a set of devices to be passed and automatically configured, or alternatively a device wildcard. The simplest method for creating suitable devices for the ISCSI target is to use logical volumes. 
 
-Initiator must be setup properly on every node of your cluster, run the following commands on your nodes:
+The following example assumes a single disk `/dev/sdb` was attached to the server. The disk is used to create a set of logical volumes, which then can be passed to the ISCSI Target service:
 
 ```
-echo 'InitiatorName=iqn.2016-04.test.com:test.img' > /etc/iscsi/initiatorname.iscsi
+[root@target-node ~] pvcreate /dev/sdb
+[root@target-node ~] vgcreate iscsi /dev/sdb
+[root@target-node ~] for vol in $(seq 0 9); do lvcreate -L 1Gi --name vol$vol iscsi; done
+[root@target-node ~] for vol in $(seq 10 14); do lvcreate -L 10Gi --name vol$vol iscsi; done
+[root@target-node ~] for vol in $(seq 15 19); do lvcreate -L 50Gi --name vol$vol iscsi; done
+``` 
+The above creates 20 volumes: 10x 1Gi, 5x 10Gi, and 5x 50Gi in size. 
 
-cat >> /etc/iscsi/iscsid.conf <<EOF
-node.session.auth.authmethod = CHAP
-node.session.auth.username = 5f84cec2
-node.session.auth.password = b0d324e9
-EOF
+Take a note of the `target-node` IP address, this will be used for the Target's portal. 
 
-systemctl enable iscsid
-systemctl start iscsid
+## Create the ISCSI Target Container
+Use the `iscsi-build-template.yaml` to create an ImageStream and build configuration. 
+
+## Create the ISCSI Target
+
+The `iscsi-deploy-template.yaml` template can be used to provision and configure the ISCSI Target. It takes the following parameters:
+
+ * DEVS - a space separated list of devices from which to create LUNs, wildcards are accepted.        
+ * DEVPATH - a volume mount path to devices, required to allow the container to 'see' the target devices
+ * HOSTNODE - the OpenShift Node name of the target server
+ * ACL_IQNS - a spare separated list of client (initiator) IQNs
+ * TARGET_NAME - the IQN for the target
+
+For example: 
+```
+# oc process -f iscsi-deploy-template.yaml DEVS=/dev/iscsi/* DEVPATH=/dev/iscsi HOSTNODE=target-node ACL_IQNS=iqn.1994-05.com.redhat:7417c798910 TARGET_NAME=iqn.2016-04.cluster.local:storage.target00
 ```
 
+# Create Persistent Volumes
+The `scripts/iscsi-pv-template.yaml` can be used to create new persistent volumes, alternatively, the script `create-pvs.sh` can be used to batch up this process. 
 
-## Setup iscsi initiator with podIP
-After you have completed the target setup, you should have got the iscsi-target pod ip, let's assume the ip is *10.2.0.2*, then on every node of your cluster run:
+The template takes the following parameters:
 
-```
-iscsiadm -m discovery -t sendtargets -p 10.2.0.2
-iscsiadm -m node -p 10.2.0.2:3260 -T iqn.2016-04.test.com:storage.target00 -I default --login
-```
+ * PORTAL - the Portal IP (assumes the target is operating on 3260)
+ * IQN - the Target IQN
+ * LUN - the LUN ID (integer value)
+ * SIZE - the size of the iscsi disk
 
-You should be able to successfully login.
+The script takes a start and end LUN id value, to generate a set of PVs with the same Portal, IQN, and SIZE parameters. 
 
-## Setup iscsi initiator with service
-
-you could also use a service ip instead of podIP.
-
-1\. Create the service
-
-```
-oc create -f service.json
-```
-
-2\. Get the service ip `oc get service iscsi-target`, assume the ip is `172.30.50.235`.
-
-3\. Create a portal in the `iscsi-target` pod using the service ip
-
-```
-oc exec iscsi-target -- targetcli /iscsi/iqn.2016-04.test.com:storage.target00/tpg1/portals create 172.30.50.235
-```
-
-4\. On nodes, configure iscsi initiator with the service ip
-
-```
-iscsiadm -m discovery -t sendtargets -p 172.30.50.235
-iscsiadm -m node -p 172.30.50.235:3260 -T iqn.2016-04.test.com:storage.target00 -I default --login
-```
-
-# Creating Persistent Volume and Claim
-
-Update your Persistent Volume template, set **targetPortal** to your podIP or service ip.
-
-```
-oc create -f pv-rwo.json
-oc create -f pvc-rwo.json
-oc get pv
-oc get pvc
-```
-
-You should see PV and PVC are bound to each other.
-
-## Creating tester pod
-
-```
-oc create -f pod.json
-```
-
-You should see your pod is `Running`.
