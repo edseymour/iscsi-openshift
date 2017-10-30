@@ -13,9 +13,11 @@ DISKS=""
 DISKID=1
 if [ -z "${DEVS}" ] ; then
 
-  mkdir /iscsi_disks
-
-  example_disks="/iscsi_disks/disk01.img /iscsi_disks/disk02.img"
+  example_disks=$(find /iscsi_disks -type f)
+  
+  if [ -z "$example_disks" ]; then
+    example_disks="/iscsi_disks/disk01.img /iscsi_disks/disk02.img"
+  fi
 
   for dev in $example_disks; do
 
